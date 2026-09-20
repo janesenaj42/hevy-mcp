@@ -5,8 +5,10 @@
 set -euo pipefail
 rm -rf build function.zip
 mkdir build
-uv pip install -r requirements.txt --target build \
+uv export --format requirements.txt --no-hashes --no-header -o build/requirements.txt
+uv pip install -r build/requirements.txt --target build \
   --python-platform x86_64-manylinux2014 --python-version 3.12 --only-binary :all:
+rm build/requirements.txt
 cp lambda_function.py build/
 uv run --no-project python -c "
 import shutil

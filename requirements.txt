@@ -1,3 +1,0 @@
-requests
-mcp==1.30.0
-mangum

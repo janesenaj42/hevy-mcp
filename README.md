@@ -37,9 +37,9 @@ Implications:
 ## Prerequisites
 
 - An AWS account
-- [`uv`](https://docs.astral.sh/uv/) -- used to build the deployment zip
-  without needing a system Python/pip install
-- A local Python 3.9+ (or Docker) to run `setup_hevy_token.py` -- see step 1
+- [`uv`](https://docs.astral.sh/uv/) -- used to run `setup_hevy_token.py`
+  and to build the deployment zip, without needing a system Python/pip
+  install or a pre-existing venv
 
 ## Setup
 
@@ -49,8 +49,7 @@ Implications:
    interactively -- run it yourself, in your own terminal, so your
    password never passes through anything else.
    ```
-   pip install requests
-   python setup_hevy_token.py
+   uv run setup_hevy_token.py
    ```
    It logs into Hevy and prints one token (also saved locally to
    `hevy_tokens.json`, which `.gitignore` already excludes). Keep it
