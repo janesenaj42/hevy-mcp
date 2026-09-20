@@ -28,6 +28,28 @@ LOGIN_URL = "https://api.hevyapp.com/login"
 # Client key captured from Hevy's own web app login flow -- see README.md
 # if this starts getting rejected.
 WEB_API_KEY = "shelobs_hevy_web"
+# A bare Content-Type + x-api-key gets a blank 400, apparently filtered
+# upstream of Hevy's own login logic (a WAF/Cloudflare fingerprint check,
+# most likely) -- these extra headers mimic a real browser hitting
+# hevy.com's login form closely enough to get through.
+BROWSER_HEADERS = {
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
+    "Cache-Control": "no-cache",
+    "Content-Type": "application/json",
+    "DNT": "1",
+    "Origin": "https://www.hevy.com",
+    "Pragma": "no-cache",
+    "Referer": "https://www.hevy.com/",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "cross-site",
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36",
+    "sec-ch-ua": '"Google Chrome";v="111", "Not(A:Brand";v="8", "Chromium";v="111"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Linux"',
+    "x-api-key": WEB_API_KEY,
+}
 
 
 def main():
@@ -36,7 +58,7 @@ def main():
 
     resp = requests.post(
         LOGIN_URL,
-        headers={"Content-Type": "application/json", "x-api-key": WEB_API_KEY},
+        headers=BROWSER_HEADERS,
         json={"emailOrUsername": email, "password": password},
         timeout=15,
     )
