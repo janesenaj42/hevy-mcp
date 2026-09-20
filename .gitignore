@@ -1,0 +1,5 @@
+build/
+function.zip
+hevy_tokens.json
+__pycache__/
+*.pyc
