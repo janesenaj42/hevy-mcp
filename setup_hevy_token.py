@@ -40,7 +40,10 @@ def main():
         json={"emailOrUsername": email, "password": password},
         timeout=15,
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        print(f"\nLogin failed: HTTP {resp.status_code}")
+        print(resp.text)
+        resp.raise_for_status()
     auth_token = resp.json()["auth_token"]
 
     with open(TOKEN_FILE, "w") as f:
