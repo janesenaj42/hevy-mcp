@@ -63,8 +63,10 @@ def main():
         timeout=15,
     )
     if not resp.ok:
-        print(f"\nLogin failed: HTTP {resp.status_code}")
-        print(resp.text)
+        print(f"\nLogin failed: HTTP {resp.status_code} {resp.reason}")
+        print(f"Body: {resp.text!r}")
+        print(f"Server header: {resp.headers.get('server')!r}")
+        print(f"cf-ray header: {resp.headers.get('cf-ray')!r}")
         resp.raise_for_status()
     auth_token = resp.json()["auth_token"]
 
