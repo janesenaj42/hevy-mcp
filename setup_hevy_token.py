@@ -1,74 +1,61 @@
 #!/usr/bin/env python3
 """
-Run locally, ONCE, to authenticate with Hevy (email + password, the same
-credentials as the Hevy app) and print the auth token you paste into the
-Lambda console's environment variable. Nothing is uploaded anywhere by this
-script -- you copy/paste the value yourself.
+Run locally, ONCE, to validate a Hevy auth token and print it for pasting
+into the Lambda console's environment variable. Nothing is uploaded
+anywhere by this script -- you copy/paste the value yourself.
 
-This talks to Hevy's private, undocumented app API (not the official
-Pro-only public API at api.hevyapp.com/docs), since that one requires a
-Hevy Pro subscription to even get an API key. It works with a normal
-(free) Hevy account, but it's reverse-engineered from the mobile app and
-could break if Hevy changes it -- see README.md.
+Hevy's login endpoint (api.hevyapp.com/login) is now protected by Google
+reCAPTCHA Enterprise, so it can't be driven from a plain script -- that's
+bot-detection, and working around it isn't something this project does,
+even for your own account. Instead, get the token by logging in normally
+yourself (solving the CAPTCHA as a human) and copying it out of your
+browser's DevTools:
 
-No known expiry for the resulting token, but if HEVY_AUTH_TOKEN starts
-getting 401s in CloudWatch, just re-run this script and update the env var.
+  1. Open https://hevy.com/login in Chrome/Firefox/Edge
+  2. Open DevTools (F12) > Network tab, and filter for "login"
+  3. Log in with your normal Hevy email/password (or set one via
+     "Forgot Password" first, if you normally use "Sign in with Google")
+  4. Click the POST request to "login" in the Network tab > Response tab
+  5. Copy the "auth_token" value (a UUID-formatted string) and paste it
+     below when prompted
+
+This script then verifies the token actually works (by calling Hevy's
+/account endpoint) before telling you to use it, and saves it locally to
+hevy_tokens.json (which .gitignore already excludes).
+
+No known expiry for the token, but if HEVY_AUTH_TOKEN starts getting 401s
+in CloudWatch, just repeat the steps above for a fresh one.
 
 Usage:
-    pip install requests
-    python setup_hevy_token.py
+    uv run setup_hevy_token.py
 """
-import getpass
 import json
 
 import requests
 
 TOKEN_FILE = "./hevy_tokens.json"
-LOGIN_URL = "https://api.hevyapp.com/login"
-# Client key captured from Hevy's own web app login flow -- see README.md
-# if this starts getting rejected.
+ACCOUNT_URL = "https://api.hevyapp.com/account"
+# Client key captured from Hevy's own web app -- see README.md if this
+# starts getting rejected.
 WEB_API_KEY = "shelobs_hevy_web"
-# A bare Content-Type + x-api-key gets a blank 400, apparently filtered
-# upstream of Hevy's own login logic (a WAF/Cloudflare fingerprint check,
-# most likely) -- these extra headers mimic a real browser hitting
-# hevy.com's login form closely enough to get through.
-BROWSER_HEADERS = {
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
-    "Cache-Control": "no-cache",
-    "Content-Type": "application/json",
-    "DNT": "1",
-    "Origin": "https://www.hevy.com",
-    "Pragma": "no-cache",
-    "Referer": "https://www.hevy.com/",
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "cross-site",
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36",
-    "sec-ch-ua": '"Google Chrome";v="111", "Not(A:Brand";v="8", "Chromium";v="111"',
-    "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": '"Linux"',
-    "x-api-key": WEB_API_KEY,
-}
 
 
 def main():
-    email = input("Hevy email or username: ")
-    password = getpass.getpass("Hevy password: ")
+    print(__doc__)
+    auth_token = input("Paste your auth_token: ").strip()
 
-    resp = requests.post(
-        LOGIN_URL,
-        headers=BROWSER_HEADERS,
-        json={"emailOrUsername": email, "password": password},
+    resp = requests.get(
+        ACCOUNT_URL,
+        headers={"auth-token": auth_token, "x-api-key": WEB_API_KEY},
         timeout=15,
     )
     if not resp.ok:
-        print(f"\nLogin failed: HTTP {resp.status_code} {resp.reason}")
+        print(f"\nToken check failed: HTTP {resp.status_code} {resp.reason}")
         print(f"Body: {resp.text!r}")
-        print(f"Server header: {resp.headers.get('server')!r}")
-        print(f"cf-ray header: {resp.headers.get('cf-ray')!r}")
         resp.raise_for_status()
-    auth_token = resp.json()["auth_token"]
+
+    account = resp.json()
+    print(f"\nToken works -- logged in as {account.get('username')!r}.")
 
     with open(TOKEN_FILE, "w") as f:
         json.dump({"auth_token": auth_token}, f)

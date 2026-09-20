@@ -15,11 +15,10 @@ AWS-managed key). Free tier covers personal use (Lambda: 1M requests +
 Hevy has an [official public API](https://api.hevyapp.com/docs/), but it's
 gated behind a **Hevy Pro** subscription just to get an API key. This
 project instead talks to the same undocumented API Hevy's own mobile/web
-apps use internally (plain email+password login, no Pro required) --
-reverse-engineered and documented by the community, e.g.
-[dmzoneill/hevyapp-api](https://github.com/dmzoneill/hevyapp-api). This is
-the same tradeoff [garmin-mcp](../garmin-mcp) makes with the unofficial
-`garminconnect` library.
+apps use internally, reverse-engineered and documented by the community,
+e.g. [dmzoneill/hevyapp-api](https://github.com/dmzoneill/hevyapp-api).
+This is the same tradeoff [garmin-mcp](../garmin-mcp) makes with the
+unofficial `garminconnect` library.
 
 Implications:
 - It could break without notice if Hevy changes their app's API.
@@ -31,6 +30,14 @@ Implications:
   "How to dissect https calls for yourself" section in the repo linked
   above) and set them via the `HEVY_WEB_CLIENT_KEY`/`HEVY_APP_CLIENT_KEY`
   env vars instead of the built-in defaults.
+- Hevy's `/login` endpoint is now protected by Google reCAPTCHA Enterprise
+  (added sometime after the 2023 captures the community docs are based
+  on), so it can't be driven from a plain script -- `setup_hevy_token.py`
+  doesn't attempt to log in for you. Instead, you log in normally
+  yourself in a browser and copy the resulting token out of DevTools; see
+  step 1 below. Every other endpoint this project calls (workouts,
+  routines, account, workout count) is unaffected -- only the login step
+  needed a human.
 - This is outside Hevy's officially sanctioned integration surface. It
   only ever touches your own account's data, but use it at your own risk.
 
@@ -45,15 +52,24 @@ Implications:
 
 1. **Get your token locally**
 
-   This script asks for your Hevy email/username and password
-   interactively -- run it yourself, in your own terminal, so your
-   password never passes through anything else.
+   Hevy's login is behind reCAPTCHA, so this is a manual, one-time step:
+
+   1. Open https://hevy.com/login in your normal browser
+   2. Open DevTools (F12) > Network tab, filter for "login"
+   3. Log in with your Hevy email/password (if you normally use "Sign in
+      with Google" and have no password, use "Forgot Password" on that
+      screen first to set one -- Google sign-in keeps working afterwards)
+   4. Click the `login` request in the Network tab > Response tab, and
+      copy the `auth_token` value (a UUID-formatted string)
+
+   Then run:
    ```
    uv run setup_hevy_token.py
    ```
-   It logs into Hevy and prints one token (also saved locally to
-   `hevy_tokens.json`, which `.gitignore` already excludes). Keep it
-   handy -- you'll paste it in step 4.
+   and paste the token when prompted. It verifies the token actually
+   works (calling Hevy's `/account` endpoint) and saves it locally to
+   `hevy_tokens.json` (which `.gitignore` already excludes). Keep it
+   handy -- you'll paste it in step 4 below.
 
 2. **Build the deployment package**
    ```
